@@ -1,5 +1,5 @@
 # 🔐 PassGuard — Password Strength Checker SaaS
-**Vibe Coder Internship — Week 4**
+
 
 A full-stack password strength checker with real-time analysis, crack time estimation, and security suggestions.
 
@@ -53,4 +53,4 @@ cd backend && npm test
 - Rate limited + helmet security headers
 
 ---
-*Built for Vibe Coder Internship — Week 4*
+
