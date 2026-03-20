@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PassGuard — Password Strength Checker</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0d14;
+  --surface: #13131f;
+  --surface2: #1a1a2e;
+  --border: #2a2a3f;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --accent: #6366f1;
+  --score-0: #ef4444;
+  --score-1: #f97316;
+  --score-2: #f59e0b;
+  --score-3: #22c55e;
+  --score-4: #10b981;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Space Grotesk', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(99,102,241,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(16,185,129,0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* NAVBAR */
+nav {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 40px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(13,13,20,0.8);
+  backdrop-filter: blur(12px);
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.logo-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--accent), #10b981);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+.nav-badge {
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(99,102,241,0.15);
+  border: 1px solid rgba(99,102,241,0.3);
+  color: #a78bfa;
+  padding: 4px 10px;
+  border-radius: 99px;
+}
+
+/* HERO */
+.hero {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 70px 24px 40px;
+}
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, #fff 40%, #a78bfa 70%, #67e8f9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero p {
+  color: var(--muted);
+  font-size: 1.05rem;
+  max-width: 480px;
+  margin: 0 auto 40px;
+  line-height: 1.6;
+}
+
+/* MAIN CARD */
+.card {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 36px;
+  max-width: 600px;
+  width: calc(100% - 48px);
+  margin: 0 auto 40px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+
+/* INPUT */
+.input-wrap {
+  position: relative;
+  margin-bottom: 24px;
+}
+.input-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+.input-field {
+  width: 100%;
+  padding: 14px 50px 14px 16px;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 1rem;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.05em;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+.input-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+.toggle-btn {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-family: 'Space Grotesk', sans-serif;
+  padding: 4px 6px;
+  transition: color 0.2s;
+}
+.toggle-btn:hover { color: var(--text); }
+
+/* STRENGTH METER */
+.meter-wrap { margin-bottom: 24px; }
+.meter-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+}
+.meter-label span:first-child { color: var(--muted); }
+.strength-label {
+  font-weight: 700;
+  transition: color 0.3s;
+}
+.meter-bars {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--border);
+  transition: background 0.4s ease;
+}
+.crack-time {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.crack-time span { color: var(--text); font-weight: 600; }
+
+/* CHECKS GRID */
+.checks-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  border: 1px solid var(--border);
+  transition: all 0.3s;
+}
+.check-item.pass {
+  border-color: rgba(34,197,94,0.3);
+  background: rgba(34,197,94,0.05);
+}
+.check-item.fail {
+  border-color: rgba(239,68,68,0.2);
+}
+.check-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.check-item.pass .check-dot { background: #22c55e; }
+.check-item.fail .check-dot { background: #ef4444; }
+
+/* SUGGESTIONS */
+.suggestions {
+  background: rgba(99,102,241,0.07);
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.suggestions-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #a78bfa;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+.suggestion-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+.suggestion-item::before {
+  content: '→';
+  color: #a78bfa;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* PASSPHRASE TIP */
+.passphrase-tip {
+  background: rgba(16,185,129,0.07);
+  border: 1px solid rgba(16,185,129,0.2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.82rem;
+  color: #6ee7b7;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  display: none;
+}
+.passphrase-tip.show { display: block; }
+
+/* ENTROPY */
+.entropy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.entropy-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 30px 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.empty-icon { font-size: 2.5rem; margin-bottom: 12px; display: block; }
+
+/* FEATURES SECTION */
+.features {
+  position: relative;
+  z-index: 1;
+  max-width: 600px;
+  width: calc(100% - 48px);
+  margin: 0 auto 60px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.feature {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+}
+.feature-icon { font-size: 1.5rem; margin-bottom: 8px; display: block; }
+.feature-title { font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
+.feature-desc { font-size: 0.75rem; color: var(--muted); line-height: 1.4; }
+
+/* FOOTER */
+footer {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Loading spinner */
+.loading { display: none; text-align: center; padding: 20px; }
+.spinner {
+  width: 28px; height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 500px) {
+  .checks-grid { grid-template-columns: 1fr; }
+  .features { grid-template-columns: 1fr; }
+  nav { padding: 14px 20px; }
+  .card { padding: 24px; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">
+    <div class="logo-icon">🔐</div>
+    PassGuard
+  </div>
+  <div class="nav-badge">v1.0.0 — Free</div>
+</nav>
+
+<div class="hero">
+  <h1>How strong is<br>your password?</h1>
+  <p>Instant analysis powered by security algorithms. Check strength, crack time, and get suggestions.</p>
+</div>
+
+<div class="card">
+  <!-- Input -->
+  <label class="input-label" for="pwInput">Enter your password</label>
+  <div class="input-wrap">
+    <input
+      type="password"
+      id="pwInput"
+      class="input-field"
+      placeholder="Type a password to analyse..."
+      autocomplete="off"
+      spellcheck="false"
+    >
+    <button class="toggle-btn" id="toggleBtn" onclick="toggleVisibility()">show</button>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="emptyState">
+    <span class="empty-icon">🛡️</span>
+    Start typing to see your password strength analysis
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Results -->
+  <div id="results" style="display:none;">
+
+    <!-- Strength meter -->
+    <div class="meter-wrap">
+      <div class="meter-label">
+        <span>Strength</span>
+        <span class="strength-label" id="strengthLabel">—</span>
+      </div>
+      <div class="meter-bars" id="meterBars">
+        <div class="bar" id="bar0"></div>
+        <div class="bar" id="bar1"></div>
+        <div class="bar" id="bar2"></div>
+        <div class="bar" id="bar3"></div>
+        <div class="bar" id="bar4"></div>
+      </div>
+      <div class="crack-time">
+        Time to crack: <span id="crackTime">—</span>
+      </div>
+    </div>
+
+    <!-- Checks -->
+    <div class="checks-grid" id="checksGrid"></div>
+
+    <!-- Passphrase tip -->
+    <div class="passphrase-tip" id="passphraseTip"></div>
+
+    <!-- Suggestions -->
+    <div class="suggestions" id="suggestionsBox" style="display:none;">
+      <div class="suggestions-title">💡 Suggestions</div>
+      <div id="suggestionsList"></div>
+    </div>
+
+    <!-- Entropy -->
+    <div class="entropy-row">
+      <span>Entropy estimate</span>
+      <span class="entropy-val" id="entropyVal">— bits</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- Features -->
+<div class="features">
+  <div class="feature">
+    <span class="feature-icon">⚡</span>
+    <div class="feature-title">Instant Analysis</div>
+    <div class="feature-desc">Real-time feedback as you type</div>
+  </div>
+  <div class="feature">
+    <span class="feature-icon">🔒</span>
+    <div class="feature-title">Privacy First</div>
+    <div class="feature-desc">Password never stored or logged</div>
+  </div>
+  <div class="feature">
+    <span class="feature-icon">🧠</span>
+    <div class="feature-title">Smart Scoring</div>
+    <div class="feature-desc">Uses zxcvbn security algorithm</div>
+  </div>
+</div>
+
+<footer>
+  PassGuard — Built for Vibe Coder Internship &nbsp;·&nbsp; Your password is never stored or transmitted insecurely
+</footer>
+
+<script>
+const API_URL = 'http://localhost:4000/api/check';
+
+const checkLabels = {
+  minLength:     'Min 8 characters',
+  goodLength:    '12+ characters',
+  hasUppercase:  'Uppercase (A-Z)',
+  hasLowercase:  'Lowercase (a-z)',
+  hasNumbers:    'Numbers (0-9)',
+  hasSymbols:    'Symbols (!@#$)',
+  notCommon:     'Not a common password',
+  noRepeating:   'No repeating chars',
+  noSequential:  'No sequential patterns',
+};
+
+let debounceTimer = null;
+
+document.getElementById('pwInput').addEventListener('input', function () {
+  clearTimeout(debounceTimer);
+  const val = this.value;
+  if (!val) {
+    showEmpty();
+    return;
+  }
+  debounceTimer = setTimeout(() => checkPassword(val), 300);
+});
+
+function toggleVisibility() {
+  const input = document.getElementById('pwInput');
+  const btn = document.getElementById('toggleBtn');
+  input.type = input.type === 'password' ? 'text' : 'password';
+  btn.textContent = input.type === 'password' ? 'show' : 'hide';
+}
+
+function showEmpty() {
+  document.getElementById('emptyState').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('loading').style.display = 'none';
+}
+
+async function checkPassword(password) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const json = await res.json();
+    if (json.success) renderResults(json.data);
+  } catch (err) {
+    // If API is not running, do client-side fallback
+    renderClientSide(password);
+  }
+}
+
+// Client-side fallback if backend is not running
+function renderClientSide(password) {
+  const checks = {
+    minLength:     password.length >= 8,
+    goodLength:    password.length >= 12,
+    hasUppercase:  /[A-Z]/.test(password),
+    hasLowercase:  /[a-z]/.test(password),
+    hasNumbers:    /[0-9]/.test(password),
+    hasSymbols:    /[^A-Za-z0-9]/.test(password),
+    notCommon:     !['password','123456','qwerty','abc123','password123'].includes(password.toLowerCase()),
+    noRepeating:   !/(.)\1{2,}/.test(password),
+    noSequential:  !/(?:123|234|345|abc|bcd)/i.test(password),
+  };
+  const passed = Object.values(checks).filter(Boolean).length;
+  const score = Math.min(4, Math.floor(passed / 2));
+  const suggestions = [];
+  if (!checks.minLength)    suggestions.push('Use at least 8 characters');
+  if (!checks.hasUppercase) suggestions.push('Add uppercase letters');
+  if (!checks.hasNumbers)   suggestions.push('Add numbers');
+  if (!checks.hasSymbols)   suggestions.push('Add symbols like !@#$');
+  if (!checks.notCommon)    suggestions.push('This is a very common password!');
+  renderResults({
+    score,
+    strength: ['Very Weak','Weak','Fair','Strong','Very Strong'][score],
+    color: ['#ef4444','#f97316','#f59e0b','#22c55e','#10b981'][score],
+    crackTime: score < 2 ? 'less than a minute' : score < 3 ? 'a few hours' : 'years',
+    entropy: password.length * 4,
+    length: password.length,
+    checks,
+    suggestions,
+    passphraseTip: score < 3 ? 'Try a passphrase like: "Coffee!Rain#Mountain7"' : null,
+  });
+}
+
+function renderResults(data) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+
+  // Strength label + color
+  const label = document.getElementById('strengthLabel');
+  label.textContent = data.strength;
+  label.style.color = data.color;
+
+  // Bars
+  for (let i = 0; i < 5; i++) {
+    const bar = document.getElementById('bar' + i);
+    bar.style.background = i <= data.score ? data.color : 'var(--border)';
+  }
+
+  // Crack time
+  document.getElementById('crackTime').textContent = data.crackTime;
+
+  // Checks grid
+  const grid = document.getElementById('checksGrid');
+  grid.innerHTML = '';
+  Object.entries(data.checks).forEach(([key, val]) => {
+    if (!checkLabels[key]) return;
+    const div = document.createElement('div');
+    div.className = `check-item ${val ? 'pass' : 'fail'}`;
+    div.innerHTML = `<div class="check-dot"></div><span>${checkLabels[key]}</span>`;
+    grid.appendChild(div);
+  });
+
+  // Passphrase tip
+  const tip = document.getElementById('passphraseTip');
+  if (data.passphraseTip) {
+    tip.textContent = '💡 ' + data.passphraseTip;
+    tip.classList.add('show');
+  } else {
+    tip.classList.remove('show');
+  }
+
+  // Suggestions
+  const sugBox = document.getElementById('suggestionsBox');
+  const sugList = document.getElementById('suggestionsList');
+  if (data.suggestions && data.suggestions.length > 0) {
+    sugList.innerHTML = data.suggestions
+      .map(s => `<div class="suggestion-item">${s}</div>`)
+      .join('');
+    sugBox.style.display = 'block';
+  } else {
+    sugBox.style.display = 'none';
+  }
+
+  // Entropy
+  document.getElementById('entropyVal').textContent = `~${data.entropy} bits`;
+}
+</script>
+</body>
+</html>
